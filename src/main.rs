@@ -7,6 +7,7 @@ extern crate dotenv;
 use dotenv::dotenv;
 use std::env;
 use std::sync::Arc;
+use log::info;
 
 use axum::{
     routing::{get, post},
@@ -33,7 +34,7 @@ async fn main() {
 
     let host = env::var("HTTP_HOST").expect("Missing Env var: HTTP_HOST");
     let port = env::var("HTTP_PORT").expect("Missing Env var: HTTP_PORT");
-    println!("Starting webserver on {host}:{port}");
+    info!("Starting webserver on {host}:{port}");
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}"))
         .await
         .unwrap();

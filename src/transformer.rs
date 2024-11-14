@@ -1,5 +1,6 @@
 use std::env;
 
+use log::debug;
 use reqwest::Error;
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +18,8 @@ struct TransformerRequest {
 pub(crate) async fn get_sentiment(content: &str) -> Result<Sentiment, Error> {
     let base_url = env::var("TRANSFORMER_API").expect("Missing Env var: TRANSFORMER_API");
     let client = reqwest::Client::new();
+
+    debug!("GET {base_url}/sentiment | {content}");
     let tr = TransformerRequest {
         text: content.to_string(),
     };
@@ -26,5 +29,6 @@ pub(crate) async fn get_sentiment(content: &str) -> Result<Sentiment, Error> {
         .send()
         .await?;
     let s: Sentiment = r.json().await?;
+    debug!("{s:?}");
     Ok(s)
 }

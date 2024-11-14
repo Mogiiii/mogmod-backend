@@ -1,4 +1,5 @@
 use axum::{extract::State, http::StatusCode, Json};
+use log::{debug, error, warn};
 use serde::Deserialize;
 use std::{sync::Arc, time::SystemTime};
 
@@ -24,22 +25,24 @@ pub(crate) struct IncomingMessage {
 }
 
 pub(crate) async fn get_guilds(State(context): State<Context>) -> (StatusCode, Json<Vec<String>>) {
+    debug!("getting guilds");
     let r = persistence::get_guilds(&context.db_client).await;
     match r {
         Ok(v) => (StatusCode::OK, Json(v)),
         Err(e) => {
-            println!("{e}");
+            error!("error getting guilds: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::new()))
         }
     }
 }
 
 pub(crate) async fn get_users(State(context): State<Context>) -> (StatusCode, Json<Vec<String>>) {
+    debug!("getting users");
     let r = persistence::get_users(&context.db_client).await;
     match r {
         Ok(v) => (StatusCode::OK, Json(v)),
         Err(e) => {
-            println!("{e}");
+            error!("error getting users: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::new()))
         }
     }
@@ -47,13 +50,14 @@ pub(crate) async fn get_users(State(context): State<Context>) -> (StatusCode, Js
 
 pub(crate) async fn get_messages(
     State(context): State<Context>,
-    user_name: String
+    user_name: String,
 ) -> (StatusCode, Json<Vec<persistence::Message>>) {
+    debug!("getting messages from {user_name}");
     let r = persistence::get_messages(&context.db_client, &user_name).await;
     match r {
         Ok(v) => (StatusCode::OK, Json(v)),
         Err(e) => {
-            println!("{e}");
+            error!("error getting messages: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::new()))
         }
     }
@@ -63,6 +67,7 @@ pub(crate) async fn post_message(
     State(context): State<Context>,
     message: Json<IncomingMessage>,
 ) -> (StatusCode, String) {
+    debug!("updating message: {}", message.id);
     let usr = persistence::User {
         id: message.user_id,
         name: message.user_name.clone(),
@@ -92,33 +97,31 @@ pub(crate) async fn post_message(
 
     match transformer::get_sentiment(&msg.content).await {
         Ok(s) => {
-            //println!("successfully got sentiment: {:?}", s);
             msg.sentiment = s.label;
             msg.sentiment_confidence = s.score;
         }
-        Err(e) => println!("{e}")
+        Err(e) => warn!("error while getting sentiment: {e}"),
     }
-    //println!("after getting sentiment: {:?}", msg);
 
     if let Err(e) = persistence::update_user(&context.db_client, &usr).await {
-        println!("{e}");
+        error!("error updating user: {e}\n{usr:?}");
         return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}"));
     }
 
     if let Err(e) = persistence::update_guild(&context.db_client, &guild).await {
-        println!("{e}");
+        error!("error updating guild: {e}\n{guild:?}");
         return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}"));
     }
 
     if let Err(e) = persistence::update_channel(&context.db_client, &channel).await {
-        println!("{e}");
+        error!("error updating channel: {e}\n{channel:?}");
         return (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}"));
     }
 
     match persistence::update_message(&context.db_client, &msg).await {
         Ok(_) => (StatusCode::OK, "OK".to_string()),
         Err(e) => {
-            println!("{e}");
+            error!("error updating message: {e}\n{msg:?}");
             (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}"))
         }
     }

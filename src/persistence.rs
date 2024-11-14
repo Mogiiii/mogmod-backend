@@ -1,3 +1,4 @@
+use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::{env, time::SystemTime};
 use tokio_postgres::{Client, Error, NoTls};
@@ -38,6 +39,8 @@ pub(crate) async fn setup() -> Result<Client, Error> {
     let hostname = env::var("PG_HOSTNAME").expect("Missing Env var: PG_HOSTNAME");
     let user = env::var("PG_USER").expect("Missing Env var: PG_USER");
     let dbname = env::var("PG_DBNAME").expect("Missing Env var: PG_DBNAME");
+
+    info!("Connecting to postgres: host={hostname} user={user} dbname={dbname}");
     let (client, connection) = tokio_postgres::connect(
         &format!("host={hostname} user={user} dbname={dbname}"),
         NoTls,
@@ -45,9 +48,11 @@ pub(crate) async fn setup() -> Result<Client, Error> {
     .await?;
     tokio::spawn(async move {
         if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
+            error!("connection error: {}", e);
         }
     });
+
+    info!("Successfully connected to postgres");
     Ok(client)
 }
 
@@ -116,7 +121,10 @@ pub(crate) async fn update_user(client: &Client, user: &User) -> Result<bool, Er
     match rows_modified {
         0 => create_user(&client, &user).await,
         1 => Ok(true),
-        _ => Ok(false), //make this an err?
+        x => {
+            warn!("Modified too many rows updating users: {x} rows | {user:?}");
+            Ok(false)
+        }
     }
 }
 
@@ -132,7 +140,10 @@ pub(crate) async fn update_guild(client: &Client, guild: &Guild) -> Result<bool,
     match rows_modified {
         0 => create_guild(&client, &guild).await,
         1 => Ok(true),
-        _ => Ok(false), //make this an err?
+        x => {
+            warn!("Modified too many rows updating guilds: {x} rows | {guild:?}");
+            Ok(false)
+        }
     }
 }
 
@@ -152,7 +163,10 @@ pub(crate) async fn update_channel(client: &Client, channel: &Channel) -> Result
     match rows_modified {
         0 => create_channel(&client, &channel).await,
         1 => Ok(true),
-        _ => Ok(false), //make this an err?
+        x => {
+            warn!("Modified too many rows updating channels: {x} rows | {channel:?}");
+            Ok(false)
+        }
     }
 }
 
@@ -177,17 +191,26 @@ pub(crate) async fn create_message(client: &Client, message: &Message) -> Result
     Ok(true)
 }
 
-pub(crate) async  fn update_message(client: &Client, message: &Message) -> Result<bool, Error> {
-    let statement = "UPDATE messages SET content = $2, sentiment = $3, sentiment_confidence = $4 WHERE id = $1";
+pub(crate) async fn update_message(client: &Client, message: &Message) -> Result<bool, Error> {
+    let statement =
+        "UPDATE messages SET content = $2, sentiment = $3, sentiment_confidence = $4 WHERE id = $1";
     let rows_modified = client
-        .execute(statement, &[&message.id, &message.content, &message.sentiment, &message.sentiment_confidence])
+        .execute(
+            statement,
+            &[
+                &message.id,
+                &message.content,
+                &message.sentiment,
+                &message.sentiment_confidence,
+            ],
+        )
         .await?;
     match rows_modified {
         0 => create_message(&client, &message).await,
         1 => Ok(true),
-        _ => Ok(false), //make this an err?
+        x => {
+            warn!("Modified too many rows updating messages: {x} rows | {message:?}");
+            Ok(false)
+        }
     }
 }
-
-//messages[message, timestamp, sentiment] from user @ guild
-//messages[user, message, timestamp, sentiment] rated poorly @ guild
