@@ -12,7 +12,7 @@ log = "0.4.22"
 reqwest = { version = "0.12.9", features = ["json"] }
 serde = { version = "1.0.213", features = ["derive"] }
 tokio = { version = "1.41.0", features = ["full"] }
-tokio-postgres = "0.7.12"
+tokio-postgres = { version = "0.7.12", features = ["array-impls"] }
 tokio-stream = "0.1.16"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

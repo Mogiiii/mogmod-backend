@@ -22,6 +22,7 @@ pub(crate) struct IncomingMessage {
     guild_name: String,
     channel_id: i64,
     channel_name: String,
+    edited_timestamp: Option<SystemTime>,
 }
 
 pub(crate) async fn get_guilds(State(context): State<Context>) -> (StatusCode, Json<Vec<String>>) {
@@ -76,12 +77,14 @@ pub(crate) async fn post_message(
     let guild = persistence::Guild {
         id: message.guild_id,
         name: message.guild_name.clone(),
+        deleted: false,
     };
 
     let channel = persistence::Channel {
         id: message.channel_id,
         name: message.channel_name.clone(),
         guild_id: message.guild_id,
+        deleted: false,
     };
 
     let mut msg = persistence::Message {
@@ -91,14 +94,16 @@ pub(crate) async fn post_message(
         user_id: message.user_id,
         guild_id: message.guild_id,
         channel_id: message.channel_id,
-        sentiment: "unknown".to_string(), //default value in case transformer api is down
-        sentiment_confidence: 0.0,
+        sentiment: None,
+        sentiment_confidence: None,
+        edited_timestamp: message.edited_timestamp,
+        deleted: false,
     };
 
     match transformer::get_sentiment(&msg.content).await {
         Ok(s) => {
-            msg.sentiment = s.label;
-            msg.sentiment_confidence = s.score;
+            msg.sentiment = Some(s.label);
+            msg.sentiment_confidence = Some(s.score);
         }
         Err(e) => warn!("error while getting sentiment: {e}"),
     }

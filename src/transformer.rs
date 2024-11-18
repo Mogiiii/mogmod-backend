@@ -29,6 +29,6 @@ pub(crate) async fn get_sentiment(content: &str) -> Result<Sentiment, Error> {
         .send()
         .await?;
     let s: Sentiment = r.json().await?;
-    debug!("{s:?}");
+    debug!("got sentiment for \"{content}\": {s:?}");
     Ok(s)
 }
