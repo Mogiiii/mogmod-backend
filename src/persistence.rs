@@ -144,7 +144,7 @@ async fn create_guild(client: &Client, guild: &Guild) -> Result<bool, Error> {
 
 pub(crate) async fn update_guild(client: &Client, guild: &Guild) -> Result<bool, Error> {
     let statement = "UPDATE guilds SET name = $1, deleted = $2 WHERE id = $3";
-    let rows_modified = client.execute(statement, &[&guild.id, &guild.deleted, &guild.name]).await?;
+    let rows_modified = client.execute(statement, &[&guild.name, &guild.deleted, &guild.id]).await?;
     match rows_modified {
         0 => create_guild(&client, &guild).await,
         1 => Ok(true),
